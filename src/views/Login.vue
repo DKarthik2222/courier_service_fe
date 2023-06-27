@@ -1,11 +1,20 @@
 <script setup>
 import { ref } from 'vue';
+import logo from "../images/express_logo.png";
 
 const loginType = ref("user");
 </script>
 <template>
     <v-container fill-height>
         <div id="body">
+            <!-- <marquee behavior="scroll" direction="right" scrollamount="50"><v-img class="mx-2" :src="logo" height="150"
+                    width="150" contain></v-img></marquee> -->
+            <v-row align="center" class="align-center justify-center"><v-col class="v-col-auto"><v-img class="mx-2"
+                        :src="logo" height="150" width="150" contain></v-img></v-col>
+                <v-col class="v-col-auto">
+                    <div class="pl-0 text-h4 font-weight-bold">Courier Services...</div>
+                </v-col>
+            </v-row>
             <v-card class="rounded-lg mx-auto" max-width="600">
                 <v-toolbar dark color="primary">
                     <v-toolbar-title>Login</v-toolbar-title>
