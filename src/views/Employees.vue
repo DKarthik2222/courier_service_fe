@@ -1,11 +1,13 @@
 <script setup>
 import { ref } from 'vue';
-import logo from "../images/express_logo.png";
+import { useGlobalStore } from '../stores/globalStore';
+import { storeToRefs } from 'pinia';
 
-const login = ref({
-    emailId: "",
-    password: "",
-});
+const globalStore = useGlobalStore();
+const { snackBar } = storeToRefs(globalStore);
+const showSn = () => {
+    // snackBar.value = { value: true, color: "green", text: "Test snackbar..." }
+}
 </script>
 <template>
     <v-container fill-height>
@@ -13,7 +15,7 @@ const login = ref({
             <v-col class="d-flex justify-space-between"><v-card-title class="pl-0 text-h4 font-weight-bold">
                     Employees List
                 </v-card-title>
-                <v-btn class="mt-3" variant="flat" color="deep-purple">Enroll Employee</v-btn>
+                <v-btn class="mt-3" variant="flat" color="deep-purple" @click="showSn">Enroll Employee</v-btn>
             </v-col>
         </v-row>
         <v-row>
@@ -37,13 +39,13 @@ const login = ref({
                                 <tbody>
                                     <tr>
                                         <td>
-                                            Jaswanthi
+                                            Jaswanti
                                         </td>
                                         <td>
                                             J
                                         </td>
                                         <td>
-                                            jaswanthi@gmail.com
+                                            jaswanti@gmail.com
                                         </td>
                                         <td>
                                             +1827267234

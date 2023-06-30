@@ -10,7 +10,7 @@ const login = ref({
 <template>
     <v-container fill-height>
         <div id="body">
-            Welcome Admin!
+            Dashboard Screen...
         </div>
     </v-container>
 </template>

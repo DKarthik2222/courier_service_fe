@@ -2,7 +2,13 @@
 import { ref } from 'vue';
 import logo from "../images/express_logo.png";
 import UserServices from "../services/UserServices.js";
+import { useGlobalStore } from '../stores/globalStore';
+import { storeToRefs } from 'pinia';
+import { useRouter } from 'vue-router';
 
+const globalStore = useGlobalStore();
+const { snackBar } = storeToRefs(globalStore);
+const router = useRouter();
 const login = ref({
     email: "",
     password: "",
@@ -13,24 +19,21 @@ async function loginClick() {
     await UserServices.loginUser(login)
         .then((data) => {
             window.localStorage.setItem("user", JSON.stringify(data.data));
-            //   snackbar.value.value = true;
-            //   snackbar.value.color = "green";
-            //   snackbar.value.text = "Login successful!";
-            //   user.value = {
-            //     firstName: "",
-            //     lastName: "",
-            //     email: "",
-            //     password: "",
-            //     isAdmin: user.value.isAdmin,
-            //   };
-            router.push({ name: "dashboard" });
-            // this.$router.push({ name: 'edit', params: { id: joke.id }})
+            snackBar.value = {
+                value: true,
+                color: "green",
+                text: "Login successful!",
+            }
+            window.location.href = "/Dashboard"
+            // router.push({ name: "dashboard" });
         })
         .catch((error) => {
             console.log(error);
-            //   snackbar.value.value = true;
-            //   snackbar.value.color = "error";
-            //   snackbar.value.text = error.response.data.message;
+            snackBar.value = {
+                value: true,
+                color: "error",
+                text: error.response.data.message,
+            }
         });
 }
 function onEmailChange() {
@@ -51,7 +54,7 @@ function onEmailChange() {
             <v-row align="center" class="align-center justify-center"><v-col class="v-col-auto"><v-img class="mx-2"
                         :src="logo" height="150" width="150" contain></v-img></v-col>
                 <v-col class="v-col-auto">
-                    <div class="pl-0 text-h4 font-weight-bold">Courier Services...</div>
+                    <div class="pl-0 text-h4 font-weight-bold"><i>Courier Services</i></div>
                 </v-col>
             </v-row>
             <v-card class="rounded-lg mx-auto" max-width="600">
