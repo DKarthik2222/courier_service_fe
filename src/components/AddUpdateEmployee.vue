@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 
 const roles = ref(['CLERK', 'DELIVERY AGENT']);
+const enablePassword = ref(false);
 const props = defineProps({
     showEmployeePopup: false,
     viewType: 'add',
@@ -9,6 +10,14 @@ const props = defineProps({
     updateEmployee: Function,
     closeEmployeePopup: Function,
 });
+const onCancel = () => {
+    enablePassword.value = false;
+    props.closeEmployeePopup();
+}
+const onSaveUpdate = () => {
+    enablePassword.value = false;
+    props.updateEmployee();
+}
 </script>
 <template>
     <v-dialog persistent v-model:modelValue="props.showEmployeePopup" @update:modelValue="props.showEmployeePopup = $event"
@@ -41,9 +50,15 @@ const props = defineProps({
                             :items="roles" density="comfortable" label="Role"></v-select>
                     </v-col>
                     <v-col cols="12" sm="6">
-                        <v-text-field v-model:modelValue="props.employee.password"
-                            @update:modelValue="props.employee.password = $event" label="Password" required
-                            type="password"></v-text-field>
+                        <v-row>
+                            <v-col :cols="enablePassword == false && props.viewType == 'edit' ? 10 : 12"><v-text-field
+                                    v-model:modelValue="props.employee.password"
+                                    @update:modelValue="props.employee.password = $event" label="Password" required
+                                    type="password"
+                                    :disabled="enablePassword == false && props.viewType == 'edit'"></v-text-field></v-col>
+                            <v-col v-if="enablePassword == false && props.viewType == 'edit'" cols="2"><v-icon class="mt-2"
+                                    size="large" icon="mdi-pencil" @click="() => enablePassword = true"></v-icon></v-col>
+                        </v-row>
                     </v-col>
                 </v-row>
             </v-card-text>
@@ -51,21 +66,21 @@ const props = defineProps({
                 <v-row>
                     <v-col class="d-flex justify-end">
                         <div>
-                            <v-btn class="mr-3" variant="flat" color="secondary"
-                                @click="props.closeEmployeePopup">Cancel</v-btn>
-                            <v-btn v-if="props.viewType == 'add'" variant="flat" color="primary"
-                                @click="props.updateEmployee()" :disabled="!props.employee?.firstName ||
+                            <v-btn class="mr-3" variant="flat" color="secondary" @click="onCancel">Cancel</v-btn>
+                            <v-btn v-if="props.viewType == 'add'" variant="flat" color="primary" @click="onSaveUpdate"
+                                :disabled="!props.employee?.firstName ||
                                     !props.employee?.lastName ||
                                     !props.employee?.email ||
                                     !props.employee?.phone ||
                                     !props.employee?.role ||
                                     !props.employee?.password
                                     ">Enroll Employee</v-btn>
-                            <v-btn v-else variant="flat" color="primary" @click="props.updateEmployee()" :disabled="!props.employee?.firstName ||
+                            <v-btn v-else variant="flat" color="primary" @click="onSaveUpdate" :disabled="!props.employee?.firstName ||
                                 !props.employee?.lastName ||
                                 !props.employee?.email ||
                                 !props.employee?.phone ||
-                                !props.employee?.role
+                                !props.employee?.role ||
+                                (!props.employee?.password && enablePassword == true)
                                 ">Update Employee</v-btn>
                         </div>
                     </v-col>

@@ -21,7 +21,7 @@ const employee = ref({
     email: "",
     phone: "",
     password: "",
-    role: "",
+    role: null,
 })
 onMounted(async () => {
     const user = JSON.parse(localStorage.getItem("user"));
@@ -47,7 +47,7 @@ const closeEmployeePopup = () => {
         email: "",
         phone: "",
         password: "",
-        role: "",
+        role: null,
     }
 }
 async function getEmployeeById(id) {
@@ -101,7 +101,7 @@ async function updateEmployee() {
             .then((response) => {
                 if (response.data.status == "Success") {
                     getALlEmployees();
-                    showEmployeePopup.value = false;
+                    closeEmployeePopup();
                     snackBar.value = {
                         value: true,
                         color: "green",
@@ -122,7 +122,7 @@ async function updateEmployee() {
             .then((response) => {
                 if (response.data.status == "Success") {
                     getALlEmployees();
-                    showEmployeePopup.value = false;
+                    closeEmployeePopup();
                     snackBar.value = {
                         value: true,
                         color: "green",
@@ -176,7 +176,7 @@ const closeDeletePopup = () => {
         email: "",
         phone: "",
         password: "",
-        role: "",
+        role: null,
     }
 }
 </script>
