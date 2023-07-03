@@ -94,6 +94,7 @@ async function updateEmployee() {
         lastName: employee.value.lastName,
         email: employee.value.email,
         password: employee.value.password,
+        phone: employee.value.phone,
         roleId: employee.value.role == "CLERK" ? 2 : 3,
     };
     if (viewType.value == "edit") {
@@ -179,6 +180,16 @@ const closeDeletePopup = () => {
         role: null,
     }
 }
+const onPhoneChange = () => {
+    var cleaned = ('' + employee.value.phone).replace(/\D/g, '');
+    var match = cleaned.match(/^(1|)?(\d{3})(\d{3})(\d{4})$/);
+    if (match) {
+        var intlCode = (match[1] ? '+1 ' : '');
+        employee.value.phone = [intlCode, '(', match[2], ') ', match[3], '-', match[4]].join('');
+        // return [intlCode, '(', match[2], ') ', match[3], '-', match[4]].join('');
+    }
+    // return null;
+}
 </script>
 <template>
     <v-container fill-height>
@@ -209,6 +220,15 @@ const closeDeletePopup = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    <tr v-if="totalEmployees.length == 0">
+                                        <td colspan="6" v-bind:style="{
+                                            color: '#707070',
+                                            'font-size': '14px',
+                                            textAlign: 'center',
+                                        }">
+                                            No employees found...
+                                        </td>
+                                    </tr>
                                     <tr v-for="emp in totalEmployees" :key="emp.empId">
                                         <td>
                                             {{ emp.firstName }}
@@ -237,8 +257,8 @@ const closeDeletePopup = () => {
                         </v-col>
                     </v-row></v-card></v-col></v-row>
     </v-container>
-    <AddUpdateEmployee :showEmployeePopup="showEmployeePopup" :employee="employee" :closeEmployeePopup="closeEmployeePopup"
-        :updateEmployee="updateEmployee" :viewType="viewType" />
+    <AddUpdateEmployee :showEmployeePopup="showEmployeePopup" :employee="employee" :onPhoneChange="onPhoneChange"
+        :closeEmployeePopup="closeEmployeePopup" :updateEmployee="updateEmployee" :viewType="viewType" />
     <CommonDeleteDialog :showDeletePopup="showDeletePopup" :onConfDelete="onConfDelete" :closeDeletePopup="closeDeletePopup"
         :textValue="`Are you sure want to delete ${employee.firstName} ${employee.lastName} from employees list.`" />
 </template>
