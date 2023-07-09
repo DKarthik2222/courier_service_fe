@@ -1,11 +1,119 @@
 <script setup>
-import { ref } from 'vue';
-import logo from "../images/express_logo.png";
+import { onMounted, ref } from 'vue';
+import { useGlobalStore } from '../stores/globalStore';
+import { storeToRefs } from 'pinia';
+import { useRouter } from 'vue-router';
+import CourierServices from "../services/CourierServices.js";
+import CommonDeleteDialog from '../components/CommonDeleteDialog.vue';
+import AddUpdateCourier from '../components/AddUpdateCourier.vue';
 
-const login = ref({
-    emailId: "",
-    password: "",
+const globalStore = useGlobalStore();
+const { snackBar } = storeToRefs(globalStore);
+const router = useRouter();
+const showDeletePopup = ref(false);
+const totalCouriers = ref([]);
+const viewType = ref('add');
+
+const courierDetails = ref({
+    pickupAvenvue: null,
+    dropAvenvue: null,
+    pickupStreet: null,
+    dropStreet: null,
+    deliveryCost: null,
+    customerDetails: null,
 });
+onMounted(async () => {
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (user != null && (user.roleId == 1 || user.roleId == 2)) {
+        // getALlCouriers();
+    } else if (user != null && user.roleId != 1 && user.roleId != 2) {
+        router.push({ name: "dashboard" });
+    }
+});
+const openCourierPopup = (id = null, currViewType = "add") => {
+    router.push({ name: "addCourier" });
+    // viewType.value = currViewType;
+    // showCourierPopup.value = true;
+    // if (id) {
+    //     getCourierById(id);
+    // }
+}
+async function getCourierById(id) {
+    await CourierServices.getCourierByCourierId(id)
+        .then((response) => {
+            employee.value = {
+                empId: response.data.data.empId,
+                firstName: response.data.data.firstName,
+                lastName: response.data.data.lastName,
+                email: response.data.data.email,
+                phone: response.data.data.phone,
+                password: "",
+                role: response.data.data.role.roleName,
+            }
+        })
+        .catch((error) => {
+            console.log(error);
+            snackBar.value = {
+                value: true,
+                color: "error",
+                text: error.response.data.message,
+            }
+        });
+}
+
+async function getALlCouriers() {
+    await CourierServices.getCouriers()
+        .then((response) => {
+            totalCouriers.value = response.data.data;
+        })
+        .catch((error) => {
+            console.log(error);
+            snackBar.value = {
+                value: true,
+                color: "error",
+                text: error.response.data.message,
+            }
+        });
+}
+
+const deleteCourier = (emp) => {
+    employee.value = emp;
+    showDeletePopup.value = true;
+}
+async function onConfDelete() {
+    await CourierServices.deleteCourier(employee.value.empId)
+        .then((response) => {
+            if (response.data.status == "Success") {
+                getALlCouriers();
+                showDeletePopup.value = false;
+                snackBar.value = {
+                    value: true,
+                    color: "green",
+                    text: response.data.message,
+                }
+            }
+        })
+        .catch((error) => {
+            console.log(error);
+            snackBar.value = {
+                value: true,
+                color: "error",
+                text: error.response.data.message,
+            }
+        });
+}
+const closeDeletePopup = () => {
+    showDeletePopup.value = false;
+    employee.value = {
+        empId: null,
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        password: "",
+        role: null,
+    }
+}
 </script>
 <template>
     <v-container fill-height>
@@ -13,7 +121,7 @@ const login = ref({
             <v-col class="d-flex justify-space-between"><v-card-title class="pl-0 text-h4 font-weight-bold">
                     Couriers List
                 </v-card-title>
-                <v-btn class="mt-3" variant="flat" color="deep-purple">Add Courier</v-btn>
+                <v-btn class="mt-3" variant="flat" color="deep-purple" @click="() => openCourierPopup()">Add Courier</v-btn>
             </v-col>
         </v-row>
         <v-row>
@@ -87,4 +195,6 @@ const login = ref({
                         </v-col>
                     </v-row></v-card></v-col></v-row>
     </v-container>
+    <CommonDeleteDialog :showDeletePopup="showDeletePopup" :onConfDelete="onConfDelete" :closeDeletePopup="closeDeletePopup"
+        :textValue="`Are you sure want to delet from employees list.`" />
 </template>
