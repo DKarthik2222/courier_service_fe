@@ -14,59 +14,33 @@ const showCustomerPopup = ref(false);
 const showDeletePopup = ref(false);
 const totalCustomers = ref([])
 const viewType = ref('add')
-const customer = ref({
+const customerDetails = ref({
+    id: "",
     phone: "",
     firstName: "",
     lastName: "",
     email: "",
-    address: "",
-})
+    avenue: "",
+    street: "",
+    block: "",
+});
 onMounted(async () => {
     const user = JSON.parse(localStorage.getItem("user"));
     if (user != null && user.roleId == 1) {
-        // getALlCustomers();
-    } else if (user != null && (user.roleId != 1 || user.roleId != 2)) {
+        getALlCustomers();
+    } else if (user != null && (user.roleId != 1)) {
         router.push({ name: "dashboard" });
     }
 });
 const openCustomerPopup = (id = null, currViewType = "add") => {
+    if (id) {
+        customerDetails.value.id = id;
+    }
     viewType.value = currViewType;
     showCustomerPopup.value = true;
-    if (id) {
-        // getCustomerById(id);
-    }
 }
 const closeCustomerPopup = () => {
     showCustomerPopup.value = false;
-    customer.value = {
-        phone: "",
-        firstName: "",
-        lastName: "",
-        email: "",
-        address: "",
-    }
-}
-async function getCustomerById(id) {
-    await CustomerServices.getCustomerByCustomerId(id)
-        .then((response) => {
-            customer.value = {
-                empId: response.data.data.empId,
-                firstName: response.data.data.firstName,
-                lastName: response.data.data.lastName,
-                email: response.data.data.email,
-                phone: response.data.data.phone,
-                password: "",
-                role: response.data.data.role.roleName,
-            }
-        })
-        .catch((error) => {
-            console.log(error);
-            snackBar.value = {
-                value: true,
-                color: "error",
-                text: error.response.data.message,
-            }
-        });
 }
 
 async function getALlCustomers() {
@@ -83,67 +57,13 @@ async function getALlCustomers() {
             }
         });
 }
-async function updateCustomer() {
-    let payload = {
-        empId: customer.value.empId,
-        firstName: customer.value.firstName,
-        lastName: customer.value.lastName,
-        email: customer.value.email,
-        password: customer.value.password,
-        phone: customer.value.phone,
-        roleId: customer.value.role == "CLERK" ? 2 : 3,
-    };
-    if (viewType.value == "edit") {
-        await CustomerServices.updateCustomer(customer.value.empId, payload)
-            .then((response) => {
-                if (response.data.status == "Success") {
-                    getALlCustomers();
-                    closeCustomerPopup();
-                    snackBar.value = {
-                        value: true,
-                        color: "green",
-                        text: response.data.message,
-                    }
-                }
-            })
-            .catch((error) => {
-                console.log(error);
-                snackBar.value = {
-                    value: true,
-                    color: "error",
-                    text: error.response.data.message,
-                }
-            });
-    } else {
-        await CustomerServices.addCustomer(payload)
-            .then((response) => {
-                if (response.data.status == "Success") {
-                    getALlCustomers();
-                    closeCustomerPopup();
-                    snackBar.value = {
-                        value: true,
-                        color: "green",
-                        text: response.data.message,
-                    }
-                }
-            })
-            .catch((error) => {
-                console.log(error);
-                snackBar.value = {
-                    value: true,
-                    color: "error",
-                    text: error.response.data.message,
-                }
-            });
-    }
-}
 
-const deleteCustomer = (emp) => {
-    customer.value = emp;
+const deleteCustomer = (cust) => {
+    customerDetails.value = cust;
     showDeletePopup.value = true;
 }
 async function onConfDelete() {
-    await CustomerServices.deleteCustomer(customer.value.empId)
+    await CustomerServices.deleteCustomer(customerDetails.value.id)
         .then((response) => {
             if (response.data.status == "Success") {
                 getALlCustomers();
@@ -166,20 +86,23 @@ async function onConfDelete() {
 }
 const closeDeletePopup = () => {
     showDeletePopup.value = false;
-    customer.value = {
+    customerDetails.value = {
+        id: "",
         phone: "",
         firstName: "",
         lastName: "",
         email: "",
-        address: "",
+        avenue: "",
+        street: "",
+        block: "",
     }
 }
 const onPhoneChange = () => {
-    var cleaned = ('' + customer.value.phone).replace(/\D/g, '');
+    var cleaned = ('' + customerDetails.value.phone).replace(/\D/g, '');
     var match = cleaned.match(/^(1|)?(\d{3})(\d{3})(\d{4})$/);
     if (match) {
         var intlCode = (match[1] ? '+1 ' : '');
-        customer.value.phone = [intlCode, '(', match[2], ') ', match[3], '-', match[4]].join('');
+        customerDetails.value.phone = [intlCode, '(', match[2], ') ', match[3], '-', match[4]].join('');
     }
 }
 </script>
@@ -235,11 +158,11 @@ const onPhoneChange = () => {
                                             {{ customer?.phone }}
                                         </td>
                                         <td>
-                                            {{ customer?.address }}
+                                            {{ customer?.avenue + ", " + customer?.street + ", " + customer?.block }}
                                         </td>
                                         <td>
                                             <v-icon class="mr-3 mt-2" size="large" icon="mdi-pencil"
-                                                @click="() => openCustomerPopup(customer.customerId, 'edit')"></v-icon>
+                                                @click="() => openCustomerPopup(customer.id, 'edit')"></v-icon>
                                             <v-icon class="mt-2" size="large" icon="mdi-delete"
                                                 @click="() => deleteCustomer(customer)"></v-icon>
                                         </td>
@@ -249,8 +172,8 @@ const onPhoneChange = () => {
                         </v-col>
                     </v-row></v-card></v-col></v-row>
     </v-container>
-    <AddUpdateCustomer :showCustomerPopup="showCustomerPopup" :customer="customer" :onPhoneChange="onPhoneChange"
-        :closeCustomerPopup="closeCustomerPopup" :updateCustomer="updateCustomer" :viewType="viewType" />
+    <AddUpdateCustomer :showCustomerPopup="showCustomerPopup" :custId="customerDetails.id" :onPhoneChange="onPhoneChange"
+        :closeCustomerPopup="closeCustomerPopup" :getALlCustomers="getALlCustomers" :viewType="viewType" />
     <CommonDeleteDialog :showDeletePopup="showDeletePopup" :onConfDelete="onConfDelete" :closeDeletePopup="closeDeletePopup"
-        :textValue="`Are you sure want to delete ${customer.firstName} ${customer.lastName} from customers list.`" />
+        :textValue="`Are you sure want to delete ${customerDetails.firstName} ${customerDetails.lastName} from customers list.`" />
 </template>

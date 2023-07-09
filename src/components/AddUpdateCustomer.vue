@@ -1,13 +1,19 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watchPostEffect } from 'vue';
 import VueSelect from 'vue-select';
 import 'vue-select/dist/vue-select.css';
+import { storeToRefs } from 'pinia';
 import FairCalculatorService from '../services/FairCalculatorService';
+import CustomerServices from '../services/CustomerServices';
+import { useGlobalStore } from '../stores/globalStore';
 
+const globalStore = useGlobalStore();
+const { snackBar } = storeToRefs(globalStore);
 const props = defineProps({
     showCustomerPopup: false,
     viewType: 'add',
-    updateCustomer: Function,
+    custId: null,
+    getALlCustomers: Function,
     closeCustomerPopup: Function,
     onPhoneChange: Function,
 });
@@ -20,12 +26,123 @@ const customer = ref({
     avenue: null,
     block: null,
 });
+watchPostEffect(() => {
+    if (props.custId) {
+        getCustomerById(props.custId);
+    }
+});
 const availableBlocks = ref([]);
 const onCancel = () => {
+    customer.value = {
+        firstName: "",
+        lastName: "",
+        phone: "",
+        email: "",
+        street: null,
+        avenue: null,
+        block: null,
+    }
     props.closeCustomerPopup();
 }
 const onSaveUpdate = () => {
-    // props.updateCustomer();
+    updateCustomer();
+}
+
+
+async function updateCustomer() {
+    let payload = {
+        firstName: customer.value.firstName,
+        lastName: customer.value.lastName,
+        phone: customer.value.phone,
+        email: customer.value.email,
+        street: customer.value.street.streetName,
+        avenue: customer.value.avenue.avenueName,
+        block: customer.value.block,
+    };
+    if (props.viewType == "edit") {
+        await CustomerServices.updateCustomer(props.custId, payload)
+            .then((response) => {
+                if (response.data.status == "Success") {
+                    props.getALlCustomers();
+                    onCancel();
+                    snackBar.value = {
+                        value: true,
+                        color: "green",
+                        text: response.data.message,
+                    }
+                }
+            })
+            .catch((error) => {
+                console.log(error);
+                snackBar.value = {
+                    value: true,
+                    color: "error",
+                    text: error.response.data.message,
+                }
+            });
+    } else {
+        await CustomerServices.addCustomer(payload)
+            .then((response) => {
+                if (response.data.status == "Success") {
+                    props.getALlCustomers();
+                    onCancel();
+                    snackBar.value = {
+                        value: true,
+                        color: "green",
+                        text: response.data.message,
+                    }
+                }
+            })
+            .catch((error) => {
+                console.log(error);
+                snackBar.value = {
+                    value: true,
+                    color: "error",
+                    text: error.response.data.message,
+                }
+            });
+    }
+}
+
+const getObjectByName = (name, objFor) => {
+    if (objFor == "street") {
+        FairCalculatorService.TOTAL_STREETS.map(item => {
+            if (item.streetName == name) {
+                console.log(item);
+                return item.streetKey;
+            }
+        })
+    } else {
+        FairCalculatorService.TOTAL_AVENUES.map(item => {
+            if (item.avenueName == name) {
+                console.log(item);
+                return item.avenueKey;
+            }
+        });
+    }
+}
+
+async function getCustomerById(id) {
+    await CustomerServices.getCustomerByCustomerId(id)
+        .then((response) => {
+            customer.value = {
+                phone: response.data.data.phone,
+                firstName: response.data.data.firstName,
+                lastName: response.data.data.lastName,
+                email: response.data.data.email,
+                avenue: getObjectByName(response.data.data.avenue, "avenue"),
+                street: getObjectByName(response.data.data.street, "street"),
+                block: response.data.data.block,
+            }
+        })
+        .catch((error) => {
+            console.log(error);
+            snackBar.value = {
+                value: true,
+                color: "error",
+                text: error.response.data.message,
+            }
+        });
 }
 
 const getAvailableBlocks = (point) => {
@@ -124,12 +241,15 @@ const onPhoneChange = () => {
                     <v-col class="d-flex justify-end">
                         <div>
                             <v-btn class="mr-3" variant="flat" color="secondary" @click="onCancel">Cancel</v-btn>
-                            <v-btn variant="flat" color="primary" @click="onSaveUpdate" :disabled="!props.customer?.firstName ||
-                                !props.customer?.lastName ||
-                                !props.customer?.email ||
-                                !props.customer?.email?.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i) ||
-                                !props.customer?.phone ||
-                                !props.customer?.address">
+                            <v-btn variant="flat" color="primary" @click="onSaveUpdate" :disabled="!customer?.firstName ||
+                                !customer?.lastName ||
+                                !customer?.email ||
+                                !customer?.email?.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i) ||
+                                !customer?.phone ||
+                                !customer?.avenue ||
+                                !customer?.street ||
+                                !customer?.block
+                                ">
                                 {{ props.viewType == "add" ? "Add Customer" : "Update Customer" }}
                             </v-btn>
                         </div>
