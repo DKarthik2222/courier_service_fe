@@ -5,7 +5,6 @@ import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import CourierServices from "../services/CourierServices.js";
 import CommonDeleteDialog from '../components/CommonDeleteDialog.vue';
-import AddUpdateCourier from '../components/AddUpdateCourier.vue';
 
 const globalStore = useGlobalStore();
 const { snackBar } = storeToRefs(globalStore);
@@ -30,13 +29,7 @@ onMounted(async () => {
         router.push({ name: "dashboard" });
     }
 });
-const openCourierPopup = (id = null, currViewType = "add") => {
-    router.push({ name: "addCourier" });
-    // viewType.value = currViewType;
-    // showCourierPopup.value = true;
-    // if (id) {
-    //     getCourierById(id);
-    // }
+const openCourierPopup = () => {
 }
 async function getCourierById(id) {
     await CourierServices.getCourierByCourierId(id)
