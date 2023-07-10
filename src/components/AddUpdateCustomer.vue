@@ -108,15 +108,13 @@ const getObjectByName = (name, objFor) => {
     if (objFor == "street") {
         FairCalculatorService.TOTAL_STREETS.map(item => {
             if (item.streetName == name) {
-                console.log(item);
-                return item.streetKey;
+                customer.value.street = item;
             }
         })
     } else {
         FairCalculatorService.TOTAL_AVENUES.map(item => {
             if (item.avenueName == name) {
-                console.log(item);
-                return item.avenueKey;
+                customer.value.avenue = item;
             }
         });
     }
@@ -130,10 +128,10 @@ async function getCustomerById(id) {
                 firstName: response.data.data.firstName,
                 lastName: response.data.data.lastName,
                 email: response.data.data.email,
-                avenue: getObjectByName(response.data.data.avenue, "avenue"),
-                street: getObjectByName(response.data.data.street, "street"),
                 block: response.data.data.block,
             }
+            getObjectByName(response.data.data.avenue, "avenue");
+            getObjectByName(response.data.data.street, "street");
         })
         .catch((error) => {
             console.log(error);
@@ -171,9 +169,7 @@ const onPhoneChange = () => {
     if (match) {
         var intlCode = (match[1] ? '+1 ' : '');
         customer.value.phone = [intlCode, '(', match[2], ') ', match[3], '-', match[4]].join('');
-        // return [intlCode, '(', match[2], ') ', match[3], '-', match[4]].join('');
     }
-    // return null;
 }
 </script>
 <template>
@@ -228,12 +224,6 @@ const onPhoneChange = () => {
                             placeholder="Select Block*">
                         </VueSelect>
                     </v-col>
-                    <!-- <v-col cols="12" sm="6">
-                        <v-text-field v-model:modelValue="props.customer.address"
-                            @update:modelValue="props.customer.address = $event" label="Address*" :rules="[
-                                v => !!v || 'Address is required',
-                            ]" required></v-text-field>
-                    </v-col> -->
                 </v-row>
             </v-card-text>
             <v-card-actions>
