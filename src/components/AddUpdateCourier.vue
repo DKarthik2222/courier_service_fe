@@ -7,16 +7,43 @@ import RouteMapView from './RouteMapView.vue';
 import { useGlobalStore } from '../stores/globalStore';
 import { storeToRefs } from 'pinia';
 import FairCalculatorService from '../services/FairCalculatorService';
+import CustomerServices from '../services/CustomerServices';
+import CommonServices from '../services/CommonServices';
+import CommonCustomerDetails from './CommonCustomerDetails.vue';
 
 const routeDirections = ref([]);
 const panel = ref([0]);
 const globalStore = useGlobalStore();
+const pickupSearch = ref();
+const dropSearch = ref();
 const { snackBar } = storeToRefs(globalStore);
 const router = useRouter();
 
 const availableBlocks = ref({
     pickup: [],
     drop: [],
+});
+const customerDetails = ref({
+    pickup: {
+        firstName: "",
+        lastName: "",
+        phone: "",
+        email: "",
+        street: "",
+        avenue: "",
+        block: "",
+        samePoint: true,
+    },
+    drop: {
+        firstName: "",
+        lastName: "",
+        phone: "",
+        email: "",
+        street: "",
+        avenue: "",
+        block: "",
+        samePoint: true,
+    },
 });
 const courierDetails = ref({
     pickupAvenue: null,
@@ -25,8 +52,11 @@ const courierDetails = ref({
     dropStreet: null,
     pickupBlock: null,
     dropBlock: null,
-    deliveryCost: null,
-    customerDetails: null,
+    requestedDateTime: null,
+    estimatedTime: 0,
+    estimatedBlocks: 0,
+    quotedPrice: 0,
+    deliveryInstructions: null,
 });
 
 async function updateCourier() {
@@ -92,6 +122,83 @@ const onSaveUpdate = () => {
     // updateCourier();
 }
 
+const getAddressObject = (street, avenue, block) => {
+    let points = {
+        street: null,
+        avenue: null,
+        block: null,
+    }
+    points.street = CommonServices.getObjectByName(street, "street");
+    points.avenue = CommonServices.getObjectByName(avenue, "avenue");
+    points.block = block;
+    return points;
+}
+async function getCustomerByEmail(email, type = 'pickup') {
+    let customer = {
+        firstName: "",
+        lastName: "",
+        phone: "",
+        email: "",
+        street: "",
+        avenue: "",
+        block: "",
+        samePoint: true,
+    };
+    let points = {
+        street: null,
+        avenue: null,
+        block: null,
+    }
+    await CustomerServices.getCustomerByCustomerEmail(email)
+        .then((response) => {
+            if (response.data.status == 'Success') {
+                customer = {
+                    phone: response.data.data.phone,
+                    firstName: response.data.data.firstName,
+                    lastName: response.data.data.lastName,
+                    email: response.data.data.email,
+                    block: response.data.data.block,
+                    street: response.data.data.street,
+                    avenue: response.data.data.avenue,
+                    samePoint: true,
+                }
+                points = getAddressObject(response.data.data.street, response.data.data.avenue, response.data.data.block);
+            }
+            if (type == 'pickup') {
+                customerDetails.value.pickup = customer;
+                courierDetails.value.pickupAvenue = points.avenue;
+                courierDetails.value.pickupStreet = points.street;
+                courierDetails.value.pickupBlock = points.block;
+            } else {
+                customerDetails.value.drop = customer;
+                courierDetails.value.dropAvenue = points.avenue;
+                courierDetails.value.dropStreet = points.street;
+                courierDetails.value.dropBlock = points.block;
+            }
+            getDirections();
+        })
+        .catch((error) => {
+            console.log(error);
+            if (type == 'pickup') {
+                customerDetails.value.pickup = customer;
+                courierDetails.value.pickupAvenue = points.avenue;
+                courierDetails.value.pickupStreet = points.street;
+                courierDetails.value.pickupBlock = points.block;
+            } else {
+                customerDetails.value.drop = customer;
+                courierDetails.value.dropAvenue = points.avenue;
+                courierDetails.value.dropStreet = points.street;
+                courierDetails.value.dropBlock = points.block;
+            }
+            getDirections();
+            snackBar.value = {
+                value: true,
+                color: "error",
+                text: error.response.data.message,
+            }
+        });
+}
+
 const getAvailableBlocks = (point, pointType) => {
     let filteredBlocks = [];
     FairCalculatorService.BLOCKS.map(item => {
@@ -102,15 +209,7 @@ const getAvailableBlocks = (point, pointType) => {
     pointType == 'pick' ? availableBlocks.value.pickup = filteredBlocks : availableBlocks.value.drop = filteredBlocks;
 }
 
-const onLocationChange = (changeType) => {
-    if (changeType == 'pickAvenue' || changeType == 'pickStreet') {
-        courierDetails.value.pickupBlock = null;
-        availableBlocks.value.pickup = [];
-    }
-    else if (changeType == 'dropAvenue' || changeType == 'dropStreet') {
-        courierDetails.value.dropBlock = null;
-        availableBlocks.value.drop = [];
-    }
+const getDirections = () => {
     let pickupPoint = null;
     let dropPoint = null;
     if (courierDetails.value.pickupAvenue?.avenueKey && courierDetails.value.pickupStreet?.streetKey) {
@@ -138,12 +237,83 @@ const onLocationChange = (changeType) => {
             }
         } else {
             routeDirections.value = shortestRoute;
+            courierDetails.value.estimatedBlocks = shortestRoute.length - 1;
+            courierDetails.value.estimatedTime = (shortestRoute.length - 1) * 3;
+            courierDetails.value.quotedPrice = (shortestRoute.length - 1) * 1.5;
         }
     } else if (routeDirections.value.length != 0) {
         routeDirections.value = [];
+        courierDetails.value.estimatedBlocks = 0;
+        courierDetails.value.estimatedTime = 0;
+        courierDetails.value.quotedPrice = 0;
+    }
+}
+const onLocationChange = (changeType) => {
+    if (changeType == 'pickAvenue' || changeType == 'pickStreet') {
+        courierDetails.value.pickupBlock = null;
+        availableBlocks.value.pickup = [];
+    }
+    else if (changeType == 'dropAvenue' || changeType == 'dropStreet') {
+        courierDetails.value.dropBlock = null;
+        availableBlocks.value.drop = [];
+    }
+    getDirections();
+}
+
+const validateDateTime = (value) => {
+    if (!value) {
+        return true;
+    }
+    const selectedDate = new Date(value);
+    const now = new Date();
+
+    const isFutureDate = selectedDate > now;
+    const isWithinTimeRange = selectedDate.getHours() >= 7 && selectedDate.getHours() < 16;
+
+    if (isFutureDate && isWithinTimeRange) {
+        return true;
+    } else {
+        return 'Please select valid future date and time between 7AM to 4PM';
     }
 }
 
+const onCheckCustomer = (pointType) => {
+    if (pointType == 'pickup') {
+        getCustomerByEmail(pickupSearch.value, pointType);
+    } else {
+        getCustomerByEmail(dropSearch.value, pointType);
+    }
+}
+
+const handlePointSwitch = (customerType) => {
+    if (customerType == 'pickup') {
+        if (customerDetails.value.pickup.samePoint) {
+            let points = getAddressObject(customerDetails.value.pickup.street, customerDetails.value.pickup.avenue, customerDetails.value.pickup.block);
+            courierDetails.value.pickupAvenue = points.avenue;
+            courierDetails.value.pickupStreet = points.street;
+            courierDetails.value.pickupBlock = points.block;
+            getDirections();
+        } else {
+            courierDetails.value.pickupAvenue = null;
+            courierDetails.value.pickupStreet = null;
+            courierDetails.value.pickupBlock = null;
+            getDirections();
+        }
+    } else {
+        if (customerDetails.value.drop.samePoint) {
+            let points = getAddressObject(customerDetails.value.drop.street, customerDetails.value.drop.avenue, customerDetails.value.drop.block);
+            courierDetails.value.dropAvenue = points.avenue;
+            courierDetails.value.dropStreet = points.street;
+            courierDetails.value.dropBlock = points.block;
+            getDirections();
+        } else {
+            courierDetails.value.dropAvenue = null;
+            courierDetails.value.dropStreet = null;
+            courierDetails.value.dropBlock = null;
+            getDirections();
+        }
+    }
+}
 </script>
 <template>
     <v-container fill-height>
@@ -151,7 +321,7 @@ const onLocationChange = (changeType) => {
             <v-col class="d-flex justify-space-between"><v-card-title class="pl-0 text-h4 font-weight-bold">
                     Add Courier
                 </v-card-title>
-                <v-btn class="mt-3" variant="outlined" color="secondary" @click="$router.go(-1)">Back</v-btn>
+                <v-btn class="mt-3" variant="outlined" color="primary" @click="$router.go(-1)">Back</v-btn>
             </v-col>
         </v-row>
         <v-row align="center">
@@ -174,9 +344,132 @@ const onLocationChange = (changeType) => {
                                         </v-row>
                                     </template>
                                 </v-expansion-panel-title>
-
                                 <v-expansion-panel-text class="pl-15 pr-15">
-
+                                    <v-row v-bind:style="{ margin: '10px' }">
+                                        <v-col cols="12">
+                                            <h3>Pickup Details</h3>
+                                        </v-col>
+                                        <v-col cols="12">
+                                            <v-row>
+                                                <v-col cols="12" sm="12">
+                                                    <v-row justify="center">
+                                                        <v-col cols="8" sm="6" align-self="center">
+                                                            <v-text-field v-model="pickupSearch" label="Search by email..."
+                                                                type="search" :rules="[
+                                                                    v => !v || v?.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i) || 'Please enter valid email'
+                                                                ]"></v-text-field>
+                                                        </v-col>
+                                                        <v-col cols="4" sm="2" align-self="center">
+                                                            <v-btn variant="flat" color="primary"
+                                                                @click="() => onCheckCustomer('pickup')"
+                                                                :disabled="!pickupSearch ||
+                                                                    !pickupSearch?.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i)">Search</v-btn>
+                                                        </v-col>
+                                                    </v-row>
+                                                </v-col>
+                                                <v-col v-if="customerDetails.pickup.email" cols="12">
+                                                    <CommonCustomerDetails :handlePointSwitch="handlePointSwitch"
+                                                        :customerDetails="customerDetails.pickup" type="pickup" />
+                                                </v-col>
+                                                <v-col v-else cols="12"><i v-bind:style="{ textAlign: 'center' }"><b>Note:
+                                                        </b><span v-bind:style="{
+                                                            color: '#707070',
+                                                            'font-size': '14px',
+                                                        }"> Please Search for a customer by email id. If you didn't
+                                                            find any
+                                                            customer or wanted to add a new customer please do reach out to
+                                                            Admin...</span></i>
+                                                </v-col>
+                                                <template v-if="!customerDetails.pickup.samePoint">
+                                                    <v-col cols="12" sm="4">
+                                                        <VueSelect v-model="courierDetails.pickupAvenue"
+                                                            @update:modelValue="() => onLocationChange('pickAvenue')"
+                                                            :options="FairCalculatorService.TOTAL_AVENUES"
+                                                            label="avenueName" value="avenueKey"
+                                                            placeholder="Select Avenue*">
+                                                        </VueSelect>
+                                                    </v-col>
+                                                    <v-col cols="12" sm="4">
+                                                        <VueSelect v-model:modelValue="courierDetails.pickupStreet"
+                                                            @update:modelValue="() => onLocationChange('pickStreet')"
+                                                            :options="FairCalculatorService.TOTAL_STREETS"
+                                                            label="streetName" value="streetKey"
+                                                            placeholder="Select Street*">
+                                                        </VueSelect>
+                                                    </v-col>
+                                                    <v-col cols="12" sm="4">
+                                                        <VueSelect v-model:modelValue="courierDetails.pickupBlock"
+                                                            @update:modelValue="onLocationChange"
+                                                            :options="availableBlocks.pickup" label="blockName"
+                                                            value="streetKey" placeholder="Select Block*">
+                                                        </VueSelect>
+                                                    </v-col>
+                                                </template>
+                                            </v-row>
+                                        </v-col>
+                                        <v-divider></v-divider>
+                                        <v-col cols="12">
+                                            <v-row>
+                                                <v-col cols="12">
+                                                    <h3>Drop Details</h3>
+                                                </v-col>
+                                                <v-col cols="12" sm="12">
+                                                    <v-row justify="center">
+                                                        <v-col cols="8" sm="6" align-self="center">
+                                                            <v-text-field v-model="dropSearch" label="Search by email..."
+                                                                :rules="[
+                                                                    v => !v || v?.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i) || 'Please enter valid email'
+                                                                ]"></v-text-field>
+                                                        </v-col>
+                                                        <v-col cols="4" sm="2" align-self="center">
+                                                            <v-btn variant="flat" color="primary"
+                                                                @click="() => onCheckCustomer('drop')"
+                                                                :disabled="!dropSearch ||
+                                                                    !dropSearch?.match(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i)">Search</v-btn>
+                                                        </v-col>
+                                                    </v-row>
+                                                </v-col>
+                                                <v-col v-if="customerDetails.drop.email" cols="12">
+                                                    <CommonCustomerDetails :handlePointSwitch="handlePointSwitch"
+                                                        :customerDetails="customerDetails.drop" type="drop" />
+                                                </v-col>
+                                                <v-col v-else cols="12"><i v-bind:style="{ textAlign: 'center' }"><b>Note:
+                                                        </b><span v-bind:style="{
+                                                            color: '#707070',
+                                                            'font-size': '14px',
+                                                        }"> Please Search for a customer by email id. If you didn't
+                                                            find any
+                                                            customer or wanted to add a new customer please do reach out to
+                                                            Admin...</span></i>
+                                                </v-col>
+                                                <template v-if="!customerDetails.drop.samePoint">
+                                                    <v-col cols="12" sm="4">
+                                                        <VueSelect v-model:modelValue="courierDetails.dropAvenue"
+                                                            @update:modelValue="() => onLocationChange('dropAvenue')"
+                                                            :options="FairCalculatorService.TOTAL_AVENUES"
+                                                            label="avenueName" value="avenueKey"
+                                                            placeholder="Select Avenue*">
+                                                        </VueSelect>
+                                                    </v-col>
+                                                    <v-col cols="12" sm="4">
+                                                        <VueSelect v-model:modelValue="courierDetails.dropStreet"
+                                                            @update:modelValue="() => onLocationChange('dropStreet')"
+                                                            :options="FairCalculatorService.TOTAL_STREETS"
+                                                            label="streetName" value="streetKey"
+                                                            placeholder="Select Street*">
+                                                        </VueSelect>
+                                                    </v-col>
+                                                    <v-col cols="12" sm="4">
+                                                        <VueSelect v-model:modelValue="courierDetails.dropBlock"
+                                                            @update:modelValue="onLocationChange"
+                                                            :options="availableBlocks.drop" label="blockName"
+                                                            value="streetKey" placeholder="Select Block*">
+                                                        </VueSelect>
+                                                    </v-col>
+                                                </template>
+                                            </v-row>
+                                        </v-col>
+                                    </v-row>
                                 </v-expansion-panel-text>
                             </v-expansion-panel>
                             <v-expansion-panel>
@@ -192,51 +485,74 @@ const onLocationChange = (changeType) => {
                                 </v-expansion-panel-title>
 
                                 <v-expansion-panel-text class="pl-15 pr-15">
-                                    <v-row>
+                                    <v-row v-if="courierDetails.pickupBlock && courierDetails.dropBlock">
                                         <v-col cols="12">
-                                            <h3>Pickup Location</h3>
+                                            <v-row>
+                                                <v-col cols="6">
+                                                    <v-text-field v-model="courierDetails.requestedDateTime"
+                                                        label="Requested Delivery Date Time*" type="datetime-local"
+                                                        :rules="[v => !!v || 'This field is required', validateDateTime]"></v-text-field>
+                                                </v-col>
+                                                <v-col cols="6">
+                                                    <v-text-field v-model="courierDetails.deliveryInstructions"
+                                                        label="Delivery Instructions*"
+                                                        :rules="[
+                                                            v => !!v || 'Delivery instructions are required']"></v-text-field>
+                                                </v-col>
+                                            </v-row>
                                         </v-col>
-                                        <v-col cols="12" sm="4">
-                                            <VueSelect v-model="courierDetails.pickupAvenue"
-                                                @update:modelValue="() => onLocationChange('pickAvenue')"
-                                                :options="FairCalculatorService.TOTAL_AVENUES" label="avenueName"
-                                                value="avenueKey" placeholder="Select Avenue*">
-                                            </VueSelect>
+                                        <v-col cols="12">
+                                            <v-row align="center" justify="center"
+                                                v-bind:style="{ 'font-size': '18px', 'white-space': 'nowrap', 'margin': '5px' }">
+                                                <v-col cols="12">
+                                                    <v-row>
+                                                        <v-col cols="6">
+                                                            <v-row>
+                                                                <v-col>Estimated Delivery Time Post Pickup: <b><i>{{
+                                                                    courierDetails.estimatedTime
+                                                                }} minutes</i></b></v-col>
+                                                            </v-row>
+                                                        </v-col>
+                                                        <v-col cols="6">
+                                                            <v-row>
+                                                                <v-col>Estimated Blocks: <b><i>{{
+                                                                    courierDetails.estimatedBlocks
+                                                                }}</i></b></v-col>
+                                                            </v-row>
+                                                        </v-col>
+                                                    </v-row>
+                                                    <v-row>
+                                                        <v-col cols="6">
+                                                            <v-row>
+                                                                <v-col>Quoted Price: <b><i>{{
+                                                                    courierDetails.quotedPrice }}$</i></b></v-col>
+                                                            </v-row>
+                                                        </v-col>
+                                                    </v-row>
+                                                </v-col>
+                                            </v-row>
                                         </v-col>
-                                        <v-col cols="12" sm="4">
-                                            <VueSelect v-model:modelValue="courierDetails.pickupStreet"
-                                                @update:modelValue="() => onLocationChange('pickStreet')"
-                                                :options="FairCalculatorService.TOTAL_STREETS" label="streetName"
-                                                value="streetKey" placeholder="Select Street*">
-                                            </VueSelect>
+                                        <v-col cols="12" v-bind:style="{ 'font-size': '20px' }"><b><i
+                                                    v-bind:style="{ color: '#19AC2F' }">
+                                                    {{ courierDetails?.pickupAvenue?.avenueName + ", " +
+                                                        courierDetails?.pickupStreet?.streetName +
+                                                        ", " + courierDetails?.pickupBlock }}</i> <b> --> </b>
+                                                <i v-bind:style="{ color: '#ac1919' }"> {{
+                                                    courierDetails?.dropAvenue?.avenueName
+                                                    + ", " +
+                                                    courierDetails?.dropStreet?.streetName +
+                                                    ", " + courierDetails?.dropBlock }}</i></b>
                                         </v-col>
-                                        <v-col cols="12" sm="4">
-                                            <VueSelect v-model:modelValue="courierDetails.pickupBlock"
-                                                @update:modelValue="onLocationChange" :options="availableBlocks.pickup"
-                                                label="blockName" value="streetKey" placeholder="Select Block*">
-                                            </VueSelect>
-                                        </v-col><v-col cols="12">
-                                            <h3>Drop Location</h3>
-                                        </v-col>
-                                        <v-col cols="12" sm="4">
-                                            <VueSelect v-model:modelValue="courierDetails.dropAvenue"
-                                                @update:modelValue="() => onLocationChange('dropAvenue')"
-                                                :options="FairCalculatorService.TOTAL_AVENUES" label="avenueName"
-                                                value="avenueKey" placeholder="Select Avenue*">
-                                            </VueSelect>
-                                        </v-col>
-                                        <v-col cols="12" sm="4">
-                                            <VueSelect v-model:modelValue="courierDetails.dropStreet"
-                                                @update:modelValue="() => onLocationChange('dropStreet')"
-                                                :options="FairCalculatorService.TOTAL_STREETS" label="streetName"
-                                                value="streetKey" placeholder="Select Street*">
-                                            </VueSelect>
-                                        </v-col>
-                                        <v-col cols="12" sm="4">
-                                            <VueSelect v-model:modelValue="courierDetails.dropBlock"
-                                                @update:modelValue="onLocationChange" :options="availableBlocks.drop"
-                                                label="blockName" value="streetKey" placeholder="Select Block*">
-                                            </VueSelect>
+                                    </v-row>
+                                    <v-row v-else>
+                                        <v-col cols="12"><i v-bind:style="{ textAlign: 'center' }">
+                                                <b>Note:</b>
+                                                <span v-bind:style="{
+                                                    color: '#707070',
+                                                    'font-size': '14px',
+                                                }"> Please select customers along with pickup and drop addresses from
+                                                    "Customer Details" tab to
+                                                    generate shortest path and fair details...</span></i>
                                         </v-col>
                                     </v-row>
                                     <v-row>
