@@ -10,9 +10,10 @@ import AddUpdateCourier from '../components/AddUpdateCourier.vue';
 const globalStore = useGlobalStore();
 const { snackBar } = storeToRefs(globalStore);
 const router = useRouter();
+const userDetails = ref(null);
 const showDeletePopup = ref(false);
 const totalCouriers = ref([]);
-const viewType = ref('add');
+const selectedCourier = ref(null);
 
 const courierDetails = ref({
     pickupAvenvue: null,
@@ -24,41 +25,13 @@ const courierDetails = ref({
 });
 onMounted(async () => {
     const user = JSON.parse(localStorage.getItem("user"));
-    if (user != null && (user.roleId == 1 || user.roleId == 2)) {
-        // getALlCouriers();
-    } else if (user != null && user.roleId != 1 && user.roleId != 2) {
-        router.push({ name: "dashboard" });
+    userDetails.value = user;
+    if (user != null) {
+        getALlCouriers();
     }
 });
 const openCourierPopup = (id = null, currViewType = "add") => {
     router.push({ name: "addCourier" });
-    // viewType.value = currViewType;
-    // showCourierPopup.value = true;
-    // if (id) {
-    //     getCourierById(id);
-    // }
-}
-async function getCourierById(id) {
-    await CourierServices.getCourierByCourierId(id)
-        .then((response) => {
-            employee.value = {
-                empId: response.data.data.empId,
-                firstName: response.data.data.firstName,
-                lastName: response.data.data.lastName,
-                email: response.data.data.email,
-                phone: response.data.data.phone,
-                password: "",
-                role: response.data.data.role.roleName,
-            }
-        })
-        .catch((error) => {
-            console.log(error);
-            snackBar.value = {
-                value: true,
-                color: "error",
-                text: error.response.data.message,
-            }
-        });
 }
 
 async function getALlCouriers() {
@@ -76,12 +49,12 @@ async function getALlCouriers() {
         });
 }
 
-const deleteCourier = (emp) => {
-    employee.value = emp;
+const deleteCourier = (courier) => {
+    selectedCourier.value = courier;
     showDeletePopup.value = true;
 }
 async function onConfDelete() {
-    await CourierServices.deleteCourier(employee.value.empId)
+    await CourierServices.deleteCourier(selectedCourier.value.id)
         .then((response) => {
             if (response.data.status == "Success") {
                 getALlCouriers();
@@ -114,6 +87,10 @@ const closeDeletePopup = () => {
         role: null,
     }
 }
+
+const onEdit = (id) => {
+    router.push({ name: 'updateCourier', params: { courierId: id } })
+}
 </script>
 <template>
     <v-container fill-height>
@@ -121,7 +98,8 @@ const closeDeletePopup = () => {
             <v-col class="d-flex justify-space-between"><v-card-title class="pl-0 text-h4 font-weight-bold">
                     Couriers List
                 </v-card-title>
-                <v-btn class="mt-3" variant="flat" color="deep-purple" @click="() => openCourierPopup()">Add Courier</v-btn>
+                <v-btn v-if="userDetails?.roleId != 3" class="mt-3" variant="flat" color="deep-purple"
+                    @click="() => openCourierPopup()">Add Courier</v-btn>
             </v-col>
         </v-row>
         <v-row>
@@ -134,9 +112,8 @@ const closeDeletePopup = () => {
                                     <tr v-bind:style="{
                                         backgroundColor: '#b28cf7',
                                     }">
-                                        <th class="text-left">User</th>
-                                        <th class="text-left">Email</th>
-                                        <th class="text-left">Phone</th>
+                                        <th class="text-left">Sender</th>
+                                        <th class="text-left">Receiver</th>
                                         <th class="text-left">Pickup</th>
                                         <th class="text-left">Drop</th>
                                         <th class="text-left">Fair($)</th>
@@ -145,49 +122,37 @@ const closeDeletePopup = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr>
-                                        <td>
-                                            Satheesh Kumar
-                                        </td>
-                                        <td>
-                                            satheesh@gmail.com
-                                        </td>
-                                        <td>
-                                            +1827267234
-                                        </td>
-                                        <td>
-                                            Block 1
-                                        </td>
-                                        <td>
-                                            Block 12
-                                        </td>
-                                        <td>35</td>
-                                        <td>Initiated</td>
-                                        <td>
-                                            <v-icon class="mr-3 mt-2" size="large" icon="mdi-pencil"></v-icon>
-                                            <v-icon class="mt-2" size="large" icon="mdi-delete"></v-icon>
+                                    <tr v-if="totalCouriers.length == 0">
+                                        <td colspan="6" v-bind:style="{
+                                            color: '#707070',
+                                            'font-size': '14px',
+                                            textAlign: 'center',
+                                        }">
+                                            No Couriers found...
                                         </td>
                                     </tr>
-                                    <tr>
+                                    <tr v-for="courier in totalCouriers" :key="courier.id">
                                         <td>
-                                            Vamshi Dhagad
+                                            {{ courier?.senderDetails?.firstName + " " + courier?.senderDetails?.lastName }}
                                         </td>
                                         <td>
-                                            vamshi@gmail.com
+                                            {{ courier?.receiverDetails?.firstName + " " +
+                                                courier?.receiverDetails?.lastName }}
                                         </td>
                                         <td>
-                                            +9282882822
+                                            {{ courier?.pickupPoint?.split("/")[1] }}
                                         </td>
                                         <td>
-                                            Block 24
+                                            {{ courier?.dropoffPoint?.split("/")[1] }}
                                         </td>
                                         <td>
-                                            Block 3
+                                            {{ courier?.quotedPrice }}
                                         </td>
-                                        <td>78</td>
-                                        <td>Delivered</td>
+                                        <td>{{ courier?.status.statusName }}</td>
                                         <td>
-                                            -
+                                            <v-icon class="mr-3 mt-2" size="large" icon="mdi-pencil"
+                                                @click="() => onEdit(courier.id)"></v-icon>
+                                            <v-icon class="mt-2" size="large" icon="mdi-delete" @click="() => deleteCourier(courier)"></v-icon>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -196,5 +161,5 @@ const closeDeletePopup = () => {
                     </v-row></v-card></v-col></v-row>
     </v-container>
     <CommonDeleteDialog :showDeletePopup="showDeletePopup" :onConfDelete="onConfDelete" :closeDeletePopup="closeDeletePopup"
-        :textValue="`Are you sure want to delet from employees list.`" />
+        :textValue="`Are you sure want to delete this item from couriers list.`" />
 </template>

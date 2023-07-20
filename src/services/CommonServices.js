@@ -18,5 +18,22 @@ class CommonServices {
     }
     return itemObj;
   };
+  getObjectById = (name, objFor) => {
+    let itemObj = null;
+    if (objFor == "street") {
+      FairCalculatorService.TOTAL_STREETS.map((item) => {
+        if (item.streetKey == name) {
+          itemObj = item;
+        }
+      });
+    } else {
+      FairCalculatorService.TOTAL_AVENUES.map((item) => {
+        if (item.avenueKey == name) {
+          itemObj = item;
+        }
+      });
+    }
+    return itemObj;
+  };
 }
 export default new CommonServices();

@@ -2,18 +2,18 @@ import apiClient from "./services";
 
 export default {
   getCouriers() {
-    return apiClient.get("couriers");
+    return apiClient.get("orders");
   },
-  getCourierByCourierId(courierId) {
-    return apiClient.get(`courier/${courierId}`);
+  getCourierByCourierId(orderId) {
+    return apiClient.get(`order/${orderId}`);
   },
   addCourier(payload) {
-    return apiClient.post(`courier`, payload);
+    return apiClient.post(`order`, payload);
   },
-  updateCourier(courierId, payload) {
-    return apiClient.put(`courier/${courierId}`, payload);
+  updateCourier(orderId, payload) {
+    return apiClient.put(`order/${orderId}`, payload);
   },
-  deleteCourier(courierId) {
-    return apiClient.delete(`courier/${courierId}`);
+  deleteCourier(orderId) {
+    return apiClient.delete(`order/${orderId}`);
   },
 };

@@ -566,7 +566,6 @@ class FairCalculator {
 
     while (!pQueue.isEmpty()) {
       const { element: currentPoint } = pQueue.dequeue();
-
       if (currentPoint === dropPoint) {
         break;
       }
@@ -598,10 +597,5 @@ class FairCalculator {
     return shortestPath;
   };
 }
-
-// const pickupPoint = "a1sF";
-// const dropPoint = "a6sA";
-// const shortestPath = findShortRoute(routeMap, pickupPoint, dropPoint);
-// console.log("Shortest Path:", shortestPath);
 
 export default new FairCalculator();
