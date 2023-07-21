@@ -167,6 +167,7 @@ async function onConfDelete() {
                 text: error.response.data.message,
             }
         });
+    closeEmployeePopup();
 }
 const closeDeletePopup = () => {
     showDeletePopup.value = false;
