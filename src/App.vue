@@ -79,7 +79,7 @@ const onLogin = () => {
               <v-list-item v-if="user.roleId == 1" prepend-icon="mdi-account-group" title="Customers" value="customers"
                 :to="'/Customers'"></v-list-item>
               <v-list-item v-if="user.roleId == 3" prepend-icon="mdi-package-variant-closed-check" title="Deliveries"
-                value="customers" :to="'/Deliveries'"></v-list-item>
+                value="deliveries" :to="'/Deliveries'"></v-list-item>
             </v-list>
 
             <template v-slot:append>
